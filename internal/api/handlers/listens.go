@@ -251,6 +251,44 @@ func (h *Handler) GetRecent(c *fiber.Ctx) error {
 	return c.JSON(recent)
 }
 
+func (h *Handler) GetPlaysByHour(c *fiber.Ctx) error {
+	params, err := parseChartParams(c)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	params.Username = c.Locals("username").(string)
+
+	data, err := h.Queries.GetPlaysByHourOfDay(c.Context(), database.GetPlaysByHourOfDayParams{
+		Username:     params.Username,
+		ListenedAt:   params.From,
+		ListenedAt_2: params.To,
+	})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch hourly stats"})
+	}
+	return c.JSON(data)
+}
+
+func (h *Handler) GetPlaysByDay(c *fiber.Ctx) error {
+	params, err := parseChartParams(c)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	params.Username = c.Locals("username").(string)
+
+	data, err := h.Queries.GetPlaysByDayOfWeek(c.Context(), database.GetPlaysByDayOfWeekParams{
+		Username:     params.Username,
+		ListenedAt:   params.From,
+		ListenedAt_2: params.To,
+	})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch day-of-week stats"})
+	}
+	return c.JSON(data)
+}
+
 // chartParams helper for common query parameters
 type chartParams struct {
 	From     time.Time

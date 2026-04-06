@@ -20,13 +20,14 @@ The Go source code of Navidrome has been modified to inject custom internal data
 * **API Endpoints (Protected via JWT):**
     * `POST /login`: Authenticates via Navidrome, returns JWT.
     * `POST /submit-listens`: Receives scrobbles from Navidrome (Public).
-    * `GET /charts/top-artists`: Top artists by timeframe.
-    * `GET /charts/top-albums`: Top albums with cover art IDs.
-    * `GET /charts/top-tracks`: Top tracks.
+    * `GET /charts/top-artists`, `top-albums`, `top-tracks`.
     * `GET /charts/recent`: Most recent listens.
-    * `GET /charts/timeline`: Play counts over time (using TimescaleDB `time_bucket`).
+    * `GET /charts/timeline`: Play counts over time (using `time_bucket`).
+    * `GET /charts/summary`: User stats overview.
+    * `GET /charts/stats/hour`: Play distribution by hour of day (0-23).
+    * `GET /charts/stats/day`: Play distribution by day of week (0-6).
     * `GET /charts/listens`: Raw scrobble history.
 
 ## Implementation Notes
 - **User Isolation:** All `/charts` endpoints enforce data isolation using the `username` stored in the JWT claims.
-- **TimescaleDB:** Leverages `time_bucket` for high-performance timeline aggregations.
+- **TimescaleDB:** Leverages `time_bucket`, `EXTRACT(HOUR FROM ...)` and `EXTRACT(DOW FROM ...)` for efficient aggregations.

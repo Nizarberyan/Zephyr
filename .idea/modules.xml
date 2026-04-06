@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/Zephyr.iml" filepath="$PROJECT_DIR$/.idea/Zephyr.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../Zephyr-mobile/.idea/Zephyr-mobile.iml" filepath="$PROJECT_DIR$/../Zephyr-mobile/.idea/Zephyr-mobile.iml" />
     </modules>
   </component>
 </project>

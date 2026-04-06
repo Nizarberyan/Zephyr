@@ -154,6 +154,96 @@ func (q *Queries) GetPlayHistoryTimeline(ctx context.Context, arg GetPlayHistory
 	return items, nil
 }
 
+const getPlaysByDayOfWeek = `-- name: GetPlaysByDayOfWeek :many
+SELECT
+    EXTRACT(DOW FROM listened_at)::INT AS day_of_week,
+    COUNT(*) AS play_count
+FROM scrobbles
+WHERE (username = $1 OR $1 = '')
+  AND listened_at >= $2 AND listened_at <= $3
+GROUP BY day_of_week
+ORDER BY day_of_week ASC
+`
+
+type GetPlaysByDayOfWeekParams struct {
+	Username     string
+	ListenedAt   time.Time
+	ListenedAt_2 time.Time
+}
+
+type GetPlaysByDayOfWeekRow struct {
+	DayOfWeek int32
+	PlayCount int64
+}
+
+func (q *Queries) GetPlaysByDayOfWeek(ctx context.Context, arg GetPlaysByDayOfWeekParams) ([]GetPlaysByDayOfWeekRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPlaysByDayOfWeek, arg.Username, arg.ListenedAt, arg.ListenedAt_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPlaysByDayOfWeekRow
+	for rows.Next() {
+		var i GetPlaysByDayOfWeekRow
+		if err := rows.Scan(&i.DayOfWeek, &i.PlayCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPlaysByHourOfDay = `-- name: GetPlaysByHourOfDay :many
+SELECT
+    EXTRACT(HOUR FROM listened_at)::INT AS hour,
+    COUNT(*) AS play_count
+FROM scrobbles
+WHERE (username = $1 OR $1 = '')
+  AND listened_at >= $2 AND listened_at <= $3
+GROUP BY hour
+ORDER BY hour ASC
+`
+
+type GetPlaysByHourOfDayParams struct {
+	Username     string
+	ListenedAt   time.Time
+	ListenedAt_2 time.Time
+}
+
+type GetPlaysByHourOfDayRow struct {
+	Hour      int32
+	PlayCount int64
+}
+
+func (q *Queries) GetPlaysByHourOfDay(ctx context.Context, arg GetPlaysByHourOfDayParams) ([]GetPlaysByHourOfDayRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPlaysByHourOfDay, arg.Username, arg.ListenedAt, arg.ListenedAt_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPlaysByHourOfDayRow
+	for rows.Next() {
+		var i GetPlaysByHourOfDayRow
+		if err := rows.Scan(&i.Hour, &i.PlayCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getRecentListens = `-- name: GetRecentListens :many
 SELECT id, listened_at, username, user_uuid, cover_art_id, duration_ms, artist_name, track_name, release_name
 FROM scrobbles
@@ -364,4 +454,60 @@ func (q *Queries) GetTopTracks(ctx context.Context, arg GetTopTracksParams) ([]G
 		return nil, err
 	}
 	return items, nil
+}
+
+const getUserPlayTime = `-- name: GetUserPlayTime :one
+SELECT COALESCE(SUM(duration_ms), 0)::BIGINT AS total_play_time_ms
+FROM scrobbles
+WHERE (username = $1 OR $1 = '')
+  AND listened_at >= $2 AND listened_at <= $3
+`
+
+type GetUserPlayTimeParams struct {
+	Username     string
+	ListenedAt   time.Time
+	ListenedAt_2 time.Time
+}
+
+func (q *Queries) GetUserPlayTime(ctx context.Context, arg GetUserPlayTimeParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, getUserPlayTime, arg.Username, arg.ListenedAt, arg.ListenedAt_2)
+	var total_play_time_ms int64
+	err := row.Scan(&total_play_time_ms)
+	return total_play_time_ms, err
+}
+
+const getUserStats = `-- name: GetUserStats :one
+SELECT
+    COUNT(*) AS total_listens,
+    COUNT(DISTINCT artist_name) AS unique_artists,
+    COUNT(DISTINCT release_name) AS unique_albums,
+    COUNT(DISTINCT track_name) AS unique_tracks
+FROM scrobbles
+WHERE (username = $1 OR $1 = '')
+  AND listened_at >= $2 AND listened_at <= $3
+`
+
+type GetUserStatsParams struct {
+	Username     string
+	ListenedAt   time.Time
+	ListenedAt_2 time.Time
+}
+
+type GetUserStatsRow struct {
+	TotalListens  int64
+	UniqueArtists int64
+	UniqueAlbums  int64
+	UniqueTracks  int64
+}
+
+func (q *Queries) GetUserStats(ctx context.Context, arg GetUserStatsParams) (GetUserStatsRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserStats, arg.Username, arg.ListenedAt, arg.ListenedAt_2)
+	var i GetUserStatsRow
+	err := row.Scan(
+		&i.TotalListens,
+		&i.UniqueArtists,
+		&i.UniqueAlbums,
+		&i.UniqueTracks,
+	)
+	return i, err
 }

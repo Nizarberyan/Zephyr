@@ -50,6 +50,9 @@ func main() {
 	charts.Get("/top-tracks", h.GetTopTracks)
 	charts.Get("/recent", h.GetRecent)
 	charts.Get("/timeline", h.GetHistoryTimeline)
+	charts.Get("/summary", h.GetUserSummary)
+	charts.Get("/stats/hour", h.GetPlaysByHour)
+	charts.Get("/stats/day", h.GetPlaysByDay)
 	charts.Get("/listens", h.GetListens) // Moved listens inside charts for protection
 
 	log.Fatal(app.Listen(cfg.Port))
