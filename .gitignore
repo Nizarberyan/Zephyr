@@ -1,0 +1,34 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+main
+tmp/server
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+
+# Air tmp directory
+tmp/
+
+# IDE - JetBrains
+.idea/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Environment variables (if created)
+.env
+.env.local
+
+# Docker volumes and data
+docker-compose.override.yml
