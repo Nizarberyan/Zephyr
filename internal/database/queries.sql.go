@@ -101,3 +101,267 @@ func (q *Queries) GetAllScrobbles(ctx context.Context) ([]Scrobble, error) {
 	}
 	return items, nil
 }
+
+const getPlayHistoryTimeline = `-- name: GetPlayHistoryTimeline :many
+SELECT time_bucket($1, listened_at) AS bucket, COUNT(*) AS play_count
+FROM scrobbles
+WHERE listened_at >= $2 AND listened_at <= $3
+  AND (username = $4 OR $4 = '')
+  AND (artist_name = $5 OR $5 = '')
+GROUP BY bucket
+ORDER BY bucket ASC
+`
+
+type GetPlayHistoryTimelineParams struct {
+	TimeBucket   interface{}
+	ListenedAt   time.Time
+	ListenedAt_2 time.Time
+	Username     string
+	ArtistName   string
+}
+
+type GetPlayHistoryTimelineRow struct {
+	Bucket    interface{}
+	PlayCount int64
+}
+
+func (q *Queries) GetPlayHistoryTimeline(ctx context.Context, arg GetPlayHistoryTimelineParams) ([]GetPlayHistoryTimelineRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPlayHistoryTimeline,
+		arg.TimeBucket,
+		arg.ListenedAt,
+		arg.ListenedAt_2,
+		arg.Username,
+		arg.ArtistName,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetPlayHistoryTimelineRow
+	for rows.Next() {
+		var i GetPlayHistoryTimelineRow
+		if err := rows.Scan(&i.Bucket, &i.PlayCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getRecentListens = `-- name: GetRecentListens :many
+SELECT id, listened_at, username, user_uuid, cover_art_id, duration_ms, artist_name, track_name, release_name
+FROM scrobbles
+WHERE (username = $1 OR $1 = '')
+ORDER BY listened_at DESC
+LIMIT $2
+`
+
+type GetRecentListensParams struct {
+	Username string
+	Limit    int32
+}
+
+func (q *Queries) GetRecentListens(ctx context.Context, arg GetRecentListensParams) ([]Scrobble, error) {
+	rows, err := q.db.QueryContext(ctx, getRecentListens, arg.Username, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Scrobble
+	for rows.Next() {
+		var i Scrobble
+		if err := rows.Scan(
+			&i.ID,
+			&i.ListenedAt,
+			&i.Username,
+			&i.UserUuid,
+			&i.CoverArtID,
+			&i.DurationMs,
+			&i.ArtistName,
+			&i.TrackName,
+			&i.ReleaseName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTopAlbums = `-- name: GetTopAlbums :many
+SELECT release_name, artist_name, cover_art_id, COUNT(*) as play_count
+FROM scrobbles
+WHERE listened_at >= $1 AND listened_at <= $2
+  AND (username = $3 OR $3 = '')
+GROUP BY release_name, artist_name, cover_art_id
+ORDER BY play_count DESC
+LIMIT $4
+`
+
+type GetTopAlbumsParams struct {
+	ListenedAt   time.Time
+	ListenedAt_2 time.Time
+	Username     string
+	Limit        int32
+}
+
+type GetTopAlbumsRow struct {
+	ReleaseName string
+	ArtistName  string
+	CoverArtID  string
+	PlayCount   int64
+}
+
+func (q *Queries) GetTopAlbums(ctx context.Context, arg GetTopAlbumsParams) ([]GetTopAlbumsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTopAlbums,
+		arg.ListenedAt,
+		arg.ListenedAt_2,
+		arg.Username,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTopAlbumsRow
+	for rows.Next() {
+		var i GetTopAlbumsRow
+		if err := rows.Scan(
+			&i.ReleaseName,
+			&i.ArtistName,
+			&i.CoverArtID,
+			&i.PlayCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTopArtists = `-- name: GetTopArtists :many
+SELECT artist_name, COUNT(*) as play_count
+FROM scrobbles
+WHERE listened_at >= $1 AND listened_at <= $2
+  AND (username = $3 OR $3 = '')
+GROUP BY artist_name
+ORDER BY play_count DESC
+LIMIT $4
+`
+
+type GetTopArtistsParams struct {
+	ListenedAt   time.Time
+	ListenedAt_2 time.Time
+	Username     string
+	Limit        int32
+}
+
+type GetTopArtistsRow struct {
+	ArtistName string
+	PlayCount  int64
+}
+
+func (q *Queries) GetTopArtists(ctx context.Context, arg GetTopArtistsParams) ([]GetTopArtistsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTopArtists,
+		arg.ListenedAt,
+		arg.ListenedAt_2,
+		arg.Username,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTopArtistsRow
+	for rows.Next() {
+		var i GetTopArtistsRow
+		if err := rows.Scan(&i.ArtistName, &i.PlayCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTopTracks = `-- name: GetTopTracks :many
+SELECT track_name, artist_name, release_name, cover_art_id, COUNT(*) as play_count
+FROM scrobbles
+WHERE listened_at >= $1 AND listened_at <= $2
+  AND (username = $3 OR $3 = '')
+GROUP BY track_name, artist_name, release_name, cover_art_id
+ORDER BY play_count DESC
+LIMIT $4
+`
+
+type GetTopTracksParams struct {
+	ListenedAt   time.Time
+	ListenedAt_2 time.Time
+	Username     string
+	Limit        int32
+}
+
+type GetTopTracksRow struct {
+	TrackName   string
+	ArtistName  string
+	ReleaseName string
+	CoverArtID  string
+	PlayCount   int64
+}
+
+func (q *Queries) GetTopTracks(ctx context.Context, arg GetTopTracksParams) ([]GetTopTracksRow, error) {
+	rows, err := q.db.QueryContext(ctx, getTopTracks,
+		arg.ListenedAt,
+		arg.ListenedAt_2,
+		arg.Username,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetTopTracksRow
+	for rows.Next() {
+		var i GetTopTracksRow
+		if err := rows.Scan(
+			&i.TrackName,
+			&i.ArtistName,
+			&i.ReleaseName,
+			&i.CoverArtID,
+			&i.PlayCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

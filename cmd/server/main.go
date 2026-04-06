@@ -6,15 +6,19 @@ import (
 	"log"
 
 	"github.com/Nizarberyan/Zephyr/internal/api/handlers"
+	"github.com/Nizarberyan/Zephyr/internal/config"
 	"github.com/Nizarberyan/Zephyr/internal/database"
+	"github.com/Nizarberyan/Zephyr/internal/services"
 	"github.com/gofiber/fiber/v2"
 	_ "github.com/lib/pq"
 )
 
 func main() {
+
+	cfg := config.Load()
+
 	// Initialize database connection
-	connStr := "host=localhost port=5432 user=postgres password=postgres dbname=postgres sslmode=disable"
-	db, err := sql.Open("postgres", connStr)
+	db, err := sql.Open("postgres", cfg.DatabaseURL)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
@@ -24,7 +28,8 @@ func main() {
 	defer db.Close()
 
 	queries := database.New(db)
-	h := handlers.NewHandler(queries)
+	subsonic := services.NewSubsonicService(cfg.NavidromeURL)
+	h := handlers.NewHandler(queries, subsonic, cfg.JWTSecret)
 
 	app := fiber.New()
 
@@ -34,9 +39,18 @@ func main() {
 		return c.Next()
 	})
 
-	// Routes
+	// Public Routes
+	app.Post("/login", h.Login)
 	app.Post("/submit-listens", h.SubmitListens)
-	app.Get("/listens", h.GetListens)
 
-	log.Fatal(app.Listen(":3002"))
+	// Protected Chart Routes
+	charts := app.Group("/charts", h.JWTMiddleware)
+	charts.Get("/top-artists", h.GetTopArtists)
+	charts.Get("/top-albums", h.GetTopAlbums)
+	charts.Get("/top-tracks", h.GetTopTracks)
+	charts.Get("/recent", h.GetRecent)
+	charts.Get("/timeline", h.GetHistoryTimeline)
+	charts.Get("/listens", h.GetListens) // Moved listens inside charts for protection
+
+	log.Fatal(app.Listen(cfg.Port))
 }

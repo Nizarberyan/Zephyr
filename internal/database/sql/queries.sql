@@ -19,3 +19,45 @@ SELECT *
 FROM scrobbles
 ORDER BY listened_at DESC;
 
+-- name: GetTopArtists :many
+SELECT artist_name, COUNT(*) as play_count
+FROM scrobbles
+WHERE listened_at >= $1 AND listened_at <= $2
+  AND (username = $3 OR $3 = '')
+GROUP BY artist_name
+ORDER BY play_count DESC
+LIMIT $4;
+
+-- name: GetTopAlbums :many
+SELECT release_name, artist_name, cover_art_id, COUNT(*) as play_count
+FROM scrobbles
+WHERE listened_at >= $1 AND listened_at <= $2
+  AND (username = $3 OR $3 = '')
+GROUP BY release_name, artist_name, cover_art_id
+ORDER BY play_count DESC
+LIMIT $4;
+
+-- name: GetTopTracks :many
+SELECT track_name, artist_name, release_name, cover_art_id, COUNT(*) as play_count
+FROM scrobbles
+WHERE listened_at >= $1 AND listened_at <= $2
+  AND (username = $3 OR $3 = '')
+GROUP BY track_name, artist_name, release_name, cover_art_id
+ORDER BY play_count DESC
+LIMIT $4;
+
+-- name: GetRecentListens :many
+SELECT *
+FROM scrobbles
+WHERE (username = $1 OR $1 = '')
+ORDER BY listened_at DESC
+LIMIT $2;
+
+-- name: GetPlayHistoryTimeline :many
+SELECT time_bucket($1, listened_at) AS bucket, COUNT(*) AS play_count
+FROM scrobbles
+WHERE listened_at >= $2 AND listened_at <= $3
+  AND (username = $4 OR $4 = '')
+  AND (artist_name = $5 OR $5 = '')
+GROUP BY bucket
+ORDER BY bucket ASC;

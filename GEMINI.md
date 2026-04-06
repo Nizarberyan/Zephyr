@@ -1,42 +1,32 @@
-# GEMINI Context: Zephyr Development
+# PROJECT CONTEXT: Custom Maloja Alternative & Navidrome Fork
 
-## Core Mission
-We are building a custom scrobbling ecosystem. The primary goal is to modify a Navidrome fork to emit enriched ListenBrainz-style scrobble payloads to our custom backend.
+## 1. Project Overview
+We are building a custom, self-hosted music scrobbling and charting service (a Maloja alternative) with a heavy focus on multi-user support, seamless single sign-on (SSO), and rich mobile charting. 
+To achieve seamless integration without requiring users to generate API keys, we are forking Navidrome to modify its native ListenBrainz scrobbling payload.
 
-## Architectural Mandates
-- **No External Metadata APIs:** All cover art and metadata must be sourced from the Navidrome instance via Subsonic APIs.
-- **Time-Series Priority:** The backend uses TimescaleDB for high-performance charting and history.
-- **SSO Focus:** User identification must be seamless, leveraging Navidrome's internal user IDs and names.
+## 2. Tech Stack Architecture
+* **Media Server:** Forked Navidrome (Go).
+* **Custom Backend:** Go (Fiber framework) + TimescaleDB (for heavy time-series data).
+* **Custom Frontend:** React Native (Expo) or Flutter (using `fl_chart`).
+* **Authentication Mechanism:** Pass-through Subsonic API verification via JWT.
+* **Image Serving Strategy:** No external API calls. The frontend will fetch images directly from Navidrome via the Subsonic `getCoverArt` endpoint.
 
-## Immediate Task: Navidrome Scrobbler Mutation
-We need to modify the Navidrome source code (specifically the ListenBrainz scrobbler) to inject the following fields into the `payload` array of the JSON body:
+## 3. Navidrome Source Modifications (COMPLETED)
+The Go source code of Navidrome has been modified to inject custom internal data into the JSON payload: `navidrome_username`, `navidrome_uuid`, `cover_art_id`, and `duration_ms`.
 
-1.  `navidrome_username`: The string username.
-2.  `navidrome_uuid`: The internal user UUID.
-3.  `cover_art_id`: The ID for the album/track cover art.
-4.  `duration_ms`: Total track length in milliseconds.
-
-### Target JSON Format
-```json
-{
-  "listen_type": "single",
-  "payload": [
-    {
-      "listened_at": 1775166795,
-      "navidrome_username": "example_user",
-      "navidrome_uuid": "550e8400-e29b-41d4-a716-446655440000",
-      "cover_art_id": "a1b2c3d4",
-      "duration_ms": 210000,
-      "track_metadata": {
-        "artist_name": "Artist Name",
-        "track_name": "Song Name",
-        "release_name": "Album Name"
-      }
-    }
-  ]
-}
-```
+## 4. Backend Implementation (In Progress)
+* **Auth:** Subsonic pass-through authentication. Successful login returns a JWT.
+* **Database:** TimescaleDB with a `scrobbles` hypertable.
+* **API Endpoints (Protected via JWT):**
+    * `POST /login`: Authenticates via Navidrome, returns JWT.
+    * `POST /submit-listens`: Receives scrobbles from Navidrome (Public).
+    * `GET /charts/top-artists`: Top artists by timeframe.
+    * `GET /charts/top-albums`: Top albums with cover art IDs.
+    * `GET /charts/top-tracks`: Top tracks.
+    * `GET /charts/recent`: Most recent listens.
+    * `GET /charts/timeline`: Play counts over time (using TimescaleDB `time_bucket`).
+    * `GET /charts/listens`: Raw scrobble history.
 
 ## Implementation Notes
-- The scrobbler logic in Navidrome typically resides in its internal `scrobbler` or `listenbrainz` packages.
-- We must ensure these fields are captured at the point of scrobble dispatch.
+- **User Isolation:** All `/charts` endpoints enforce data isolation using the `username` stored in the JWT claims.
+- **TimescaleDB:** Leverages `time_bucket` for high-performance timeline aggregations.
