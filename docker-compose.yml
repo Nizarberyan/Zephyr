@@ -1,0 +1,15 @@
+services:
+  Zephyr-db:
+    image: timescale/timescaledb-ha:pg18.1-ts2.25.0
+    container_name: Zephyr-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
